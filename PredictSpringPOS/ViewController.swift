@@ -9,7 +9,18 @@ import UIKit
 import SQLite3
 import Foundation
 
-class ViewController: UIViewController {
+class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return 3
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = UITableViewCell(style: UITableViewCell.CellStyle.default, reuseIdentifier: "cell")
+        let test = ["fdsfdss", "fsfdsd", "fdsfd"]
+        cell.textLabel?.text = test[indexPath.row]
+        return cell
+    }
+    
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -27,7 +38,6 @@ class ViewController: UIViewController {
             return
         }
         
-        
         //Delete table if previously created
         if sqlite3_exec(db, "DROP TABLE Products;", nil, nil, nil) != SQLITE_OK {
             let errmsg = String(cString: sqlite3_errmsg(db)!)
@@ -40,6 +50,7 @@ class ViewController: UIViewController {
             print("error creating table: \(errmsg)")
         }
         
+        //Read Data from CSV File and upload ito Products Table
         if let data = readDataFromCSV(fileName: "prod1M", fileType: "csv") {
             let csvRows = csv(data: data, db: db)
         } else{
@@ -64,11 +75,17 @@ class ViewController: UIViewController {
     
     func csv(data: String, db: OpaquePointer?) {
         var result: [String] = []
-        var rows = data.components(separatedBy: "\n")
-        rows.removeFirst()
-        for row in rows {
+        let rows = data.components(separatedBy: "\n")
+        let dataLength = rows.count
+        for i in 1..<dataLength {
+            //TODO currently a print statement, might want to also display in UI
+            let uploadPercentage = (i * 100)/dataLength
+            print("Upload Percentage: " + String(uploadPercentage) + "%", i, dataLength)
+            let row = rows[i]
             let columns = row.components(separatedBy: ",")
             //To do, should address case where canot cast properly
+            //Inserting columnns into table as we iterate for efficiency, so that do not have
+            //to go back over
             insert(db: db, productID: Int(columns[0]) ?? 0, title: columns[1], listPrice: Double(columns[2]) ?? 0.0, salesPrice: Double(columns[3]) ?? 0.0, color: columns[4], size: columns[5])
         }
     }
