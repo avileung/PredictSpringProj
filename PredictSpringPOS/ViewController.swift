@@ -10,21 +10,49 @@ import SQLite3
 import Foundation
 
 class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
+    
+    @IBOutlet weak var tableView: UITableView!
+    var products: [String] = []
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return 3
+        return products.count
     }
     
+
+
+    
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = UITableViewCell(style: UITableViewCell.CellStyle.default, reuseIdentifier: "cell")
+        
+        let cell = tableView.dequeueReusableCell(withIdentifier: "Cell",
+                                 for: indexPath) as! ProductCell
         let test = ["fdsfdss", "fsfdsd", "fdsfd"]
-        cell.textLabel?.text = test[indexPath.row]
+        //cell.productID.text = products[indexPath.row]
         return cell
     }
+    
+    // Create a standard header that includes the returned text.
+    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+            let headerView = UIView.init(frame: CGRect.init(x: 0, y: 0, width: tableView.frame.width, height: 50))
+            
+            let label = UILabel()
+            label.frame = CGRect.init(x: 0, y: 0, width: headerView.frame.width, height: headerView.frame.height)
+            label.text = "Notification Times"
+            label.font = .systemFont(ofSize: 16)
+            //label.textColor = .yellow
+            
+            headerView.addSubview(label)
+            
+            return headerView
+        }
     
 
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
+        self.tableView.dataSource = self
+        self.tableView.delegate = self
+        self.tableView.register(ProductCell.self,
+                               forCellReuseIdentifier: "Cell")
+        
         //the database file
         let fileURL = try! FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
             .appendingPathComponent("ProductDatabase.sqlite")
@@ -39,7 +67,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         }
         
         //Delete table if previously created
-        if sqlite3_exec(db, "DROP TABLE Products;", nil, nil, nil) != SQLITE_OK {
+        if sqlite3_exec(db, "DROP TABLE IF EXISTS Products;", nil, nil, nil) != SQLITE_OK {
             let errmsg = String(cString: sqlite3_errmsg(db)!)
             print("error deleting table: \(errmsg)")
         }
@@ -56,6 +84,8 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         } else{
             print("Error loading File")
         }
+        
+
 
     }
     
@@ -72,16 +102,17 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
                 return nil
             }
         }
-    
+    /*Function uploads to SQL Database in less than 30 seconds on currett devices tested. However, if processsor was slower or data sett was larger I would look more inot concurency andd multi threading.  */
     func csv(data: String, db: OpaquePointer?) {
         var result: [String] = []
         let rows = data.components(separatedBy: "\n")
-        let dataLength = rows.count
+        let dataLength = 1000 //  rows.count //
         for i in 1..<dataLength {
             //TODO currently a print statement, might want to also display in UI
             let uploadPercentage = (i * 100)/dataLength
             print("Upload Percentage: " + String(uploadPercentage) + "%", i, dataLength)
             let row = rows[i]
+            products.append(row)
             let columns = row.components(separatedBy: ",")
             //To do, should address case where canot cast properly
             //Inserting columnns into table as we iterate for efficiency, so that do not have
