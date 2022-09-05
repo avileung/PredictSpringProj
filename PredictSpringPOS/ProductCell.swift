@@ -8,10 +8,13 @@
 import UIKit
 
 class ProductCell: UITableViewCell {
-
+    
+    @IBOutlet weak var myCellLabel: UILabel!
+    
     override func awakeFromNib() {
         super.awakeFromNib()
         // Initialization code
+
     }
 
     override func setSelected(_ selected: Bool, animated: Bool) {

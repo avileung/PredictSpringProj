@@ -12,7 +12,15 @@ import Foundation
 class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
     
     @IBOutlet weak var tableView: UITableView!
+    
+    @IBOutlet weak var searchBar: UISearchBar!
+    
+    @IBOutlet weak var productID: UILabel!
+    
     var products: [String] = []
+    
+    var searching = false
+    
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return products.count
     }
@@ -23,9 +31,19 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell",
-                                 for: indexPath) as! ProductCell
+                                 for: indexPath) //as! ProductCell
+//        var cell: ProductCell
+//        if let dequeuedcell = tableView.dequeueReusableCell(withIdentifier: "Cell",
+//                                                        for: indexPath) as? ProductCell {
+//                    cell = dequeuedcell
+//                } else {
+//                    cell = ProductCell(style: UITableViewCell.CellStyle.default, reuseIdentifier: "Cell")
+//                }
+        
         let test = ["fdsfdss", "fsfdsd", "fdsfd"]
-        //cell.productID.text = products[indexPath.row]
+        cell.textLabel?.text = products[indexPath.row]
+        cell.textLabel?.font = cell.textLabel?.font.withSize(8)
+        //cell.detailTextLabel?.text = products[indexPath.row]
         return cell
     }
     
@@ -48,10 +66,15 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
-        self.tableView.dataSource = self
-        self.tableView.delegate = self
+        
         self.tableView.register(ProductCell.self,
                                forCellReuseIdentifier: "Cell")
+        self.tableView.dataSource = self
+        self.tableView.delegate = self
+        
+        self.searchBar.delegate = self
+        
+        self.searchBar.showsCancelButton = true
         
         //the database file
         let fileURL = try! FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
@@ -106,7 +129,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     func csv(data: String, db: OpaquePointer?) {
         var result: [String] = []
         let rows = data.components(separatedBy: "\n")
-        let dataLength = 1000 //  rows.count //
+        let dataLength = 1000 //rows.count //
         for i in 1..<dataLength {
             //TODO currently a print statement, might want to also display in UI
             let uploadPercentage = (i * 100)/dataLength
@@ -151,3 +174,13 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     
 }
 
+extension ViewController: UISearchBarDelegate {
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        print("SEARCHED")
+    }
+    
+    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        print("CANNCELLED")
+        searchBar.text = ""
+    }
+}
