@@ -7,6 +7,7 @@
 
 import UIKit
 import SQLite3
+
 import Foundation
 
 class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
@@ -85,8 +86,9 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             .appendingPathComponent("ProductDatabase.sqlite")
  
         //opening the database
+        let rc = sqlite3_open_v2(fileURL.path, &db, SQLITE_OPEN_CREATE|SQLITE_OPEN_READWRITE|SQLITE_OPEN_FULLMUTEX, nil)
         
-        guard sqlite3_open(fileURL.path, &db) == SQLITE_OK else {
+        guard rc == SQLITE_OK else {        //sqlite3_open(fileURL.path, &db)
             print("error opening database")
             sqlite3_close(db)
             db = nil
@@ -104,6 +106,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             let errmsg = String(cString: sqlite3_errmsg(db)!)
             print("error creating table: \(errmsg)")
         }
+        
         
         //Read Data from CSV File and upload ito Products Table
         if let data = readDataFromCSV(fileName: "prod1M", fileType: "csv") {
@@ -133,12 +136,18 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     func csv(data: String, db: OpaquePointer?) {
         var result: [String] = []
         let rows = data.components(separatedBy: "\n")
-        let dataLength = 1000 //rows.count //
+        let dataLength = 10000 //rows.count //
+//        try db.transaction {
+//            let rowid = try db.run(users.insert(email <- "betty@icloud.com"))
+//            try db.run(users.insert(email <- "cathy@icloud.com", managerId <- rowid))
+//        }
+        //DispatchQueue.concurrentPerform(iterations: dataLength) { (i) in
         for i in 1..<dataLength {
             //TODO currently a print statement, might want to also display in UI
             let uploadPercentage = (i * 100)/dataLength
             print("Upload Percentage: " + String(uploadPercentage) + "%", i, dataLength)
             let row = rows[i]
+            //TODO Malloc issue with array
             products.append(row)
             let columns = row.components(separatedBy: ",")
             //To do, should address case where canot cast properly
@@ -146,9 +155,22 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             //to go back over
             insert(db: db, productID: Int(columns[0]) ?? 0, title: columns[1], listPrice: Double(columns[2]) ?? 0.0, salesPrice: Double(columns[3]) ?? 0.0, color: columns[4], size: columns[5])
         }
+//        for i in 1..<dataLength {
+//            //TODO currently a print statement, might want to also display in UI
+//            let uploadPercentage = (i * 100)/dataLength
+//            print("Upload Percentage: " + String(uploadPercentage) + "%", i, dataLength)
+//            let row = rows[i]
+//            products.append(row)
+//            let columns = row.components(separatedBy: ",")
+//            //To do, should address case where canot cast properly
+//            //Inserting columnns into table as we iterate for efficiency, so that do not have
+//            //to go back over
+//            insert(db: db, productID: Int(columns[0]) ?? 0, title: columns[1], listPrice: Double(columns[2]) ?? 0.0, salesPrice: Double(columns[3]) ?? 0.0, color: columns[4], size: columns[5])
+//        }
     }
     
     func insert(db: OpaquePointer?, productID: Int, title: String, listPrice: Double, salesPrice: Double, color: String, size: String) {
+        
       let insertStatementString = "INSERT INTO Products (productID, title, listPrice, salesPrice, color, size) VALUES (?, ?, ?, ?, ?, ?);"
       var insertStatement: OpaquePointer?
       // 1
@@ -172,8 +194,8 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
       }
       // 5
       sqlite3_finalize(insertStatement)
+        
     }
-    
 
      
     func query() {
