@@ -174,65 +174,42 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
       sqlite3_finalize(insertStatement)
     }
     
-    func readValues(){
+
      
-            //first empty the list of heroes
-            products.removeAll()
-     
-            //this is our select query
-            let queryString = "SELECT * FROM Products WHERE productID = '99000025001002'" //+ searchedVal
-     
-            //statement pointer
-            var stmt:OpaquePointer?
-     
-            //preparing the query
-            let a = sqlite3_prepare(db, queryString, -1, nil, nil)
-//            if a  != SQLITE_OK{
-//                let errmsg = String(cString: sqlite3_errmsg(db)!)
-//                print("error preparing insert: \(errmsg)")
-//                return
-//            }
-     
-            //traversing through all the records
-            while(sqlite3_step(stmt) == SQLITE_ROW){
-                let id = sqlite3_column_int(stmt, 0)
-                let name = String(cString: sqlite3_column_text(stmt, 1))
-                let powerrank = sqlite3_column_int(stmt, 2)
-     
-                //adding values to list
-                //products.append(Hero(id: Int(id), name: String(describing: name), powerRanking: Int(powerrank)))
-            }
-     
-        }
     func query() {
+        products.removeAll()
       var queryStatement: OpaquePointer?
       // 1
-        let queryStatementString = "SELECT * FROM Products WHERE productID = '99000025001003'"
+        var queryStatementString: String
+        if searchedVal == ""{
+            queryStatementString = "SELECT * FROM Products"
+        }else{
+            //name like "Mr.%"
+            queryStatementString = "SELECT * FROM Products WHERE productID LIKE '" + searchedVal + "%'"
+        }
+        
       if sqlite3_prepare_v2(db, queryStatementString, -1, &queryStatement, nil) ==
           SQLITE_OK {
         // 2
-        if sqlite3_step(queryStatement) == SQLITE_ROW {
+        while sqlite3_step(queryStatement) == SQLITE_ROW {
           // 3
-          let id = sqlite3_column_int(queryStatement, 0)
-          // 4
-          guard let queryResultCol1 = sqlite3_column_text(queryStatement, 1) else {
-            print("Query result is nil")
-            return
-          }
-          let name = String(cString: queryResultCol1)
-          // 5
-          print("\nQuery Result:")
-          print("\(id) | \(name)")
-      } else {
-          print("\nQuery returned no results.")
-      }
-      } else {
+          var retrievedString = ""
+          retrievedString += String(sqlite3_column_int64(queryStatement, 0))
+            retrievedString += String(cString: sqlite3_column_text(queryStatement, 1))
+            retrievedString += String(sqlite3_column_double(queryStatement, 2))
+            retrievedString += String(sqlite3_column_double(queryStatement, 3))
+            retrievedString += String(cString: sqlite3_column_text(queryStatement, 4))
+            retrievedString += String(cString: sqlite3_column_text(queryStatement, 5))
+            products.append(retrievedString)
+          
+      } } else {
           // 6
         let errorMessage = String(cString: sqlite3_errmsg(db))
-        print("\nQuery is not prepared \(errorMessage)")
+          print("\nQuery is not prepared \(errorMessage)")
       }
       // 7
       sqlite3_finalize(queryStatement)
+        tableView.reloadData()
     }
 
 
