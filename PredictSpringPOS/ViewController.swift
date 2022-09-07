@@ -148,7 +148,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     func csv(data: String, db: OpaquePointer?) {
         var result: [String] = []
         let rows = data.components(separatedBy: "\n")
-        let dataLength = 10000 //rows.count - 1 //
+        let dataLength = rows.count - 1 //10000 //
 //        try db.transaction {
 //            let rowid = try db.run(users.insert(email <- "betty@icloud.com"))
 //            try db.run(users.insert(email <- "cathy@icloud.com", managerId <- rowid))
@@ -185,12 +185,12 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
 
      
              let uploadPercentage = (i * 100)/dataLength
-             print("Upload Percentage: " + String(uploadPercentage) + "%", i, dataLength)
+             print("Upload Percentage: " + String(uploadPercentage) + "%")
              var row = rows[i]
              //TODO Malloc issue with array
              products.append(row)
              let columns = row.components(separatedBy: ",")
-             while row.removeFirst() != ","{
+             while !row.isEmpty && row.removeFirst() != ","{
              }
              //try docsTrans?.run(Int(columns[0]) ?? 0, columns[1], Double(columns[2]) ?? 0.0, Double(columns[3]) ?? 0.0, columns[4], columns[5])
              
@@ -294,14 +294,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         //}
         let mapRowIterator = try? DB!.prepareRowIterator(query)
         while let row = try? mapRowIterator?.failableNext() {
-                // Handle row
-            //print(row[productID], row[listPrice], row[titleVal], row[salesPrice], row[color], row[size])
-            //let str = row[productID] + row[titleVal] + String(row[listPrice])
-            //let str2 = String(row[salesPrice]) + row[color] + row[size]
-            //var retrievedString = ""
-            //var fPointer: UnsafeMutablePointer<Float> = UnsafeMutablePointer.alloc(1)
-            //retrievedString += String(sqlite3_column_int64(&row, 0))
-            //if let name = row[0] as? String { products.append(name) }
+
             products.append(String(row[productID]) + row[size])
             //"title")
 //            let listPrice = Expression<Double>("listPrice")
