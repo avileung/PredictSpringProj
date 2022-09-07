@@ -16,7 +16,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     
     @IBOutlet weak var searchBar: UISearchBar!
     
-    @IBOutlet weak var productID: UILabel!
+    @IBOutlet weak var productIDLabel: UILabel!
     
     var products: [String] = []
     
@@ -25,6 +25,18 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     var searchedVal = ""
     
     var db: OpaquePointer?
+    
+    let productsTab = Table("ProductsTab")
+    
+    let productID = Expression<Int64>("productID")
+    let titleVal = Expression<String?>("title")
+    let listPrice = Expression<Double>("listPrice")
+    let salesPrice = Expression<Double>("salesPrice")
+    let color = Expression<String?>("color")
+    let size = Expression<String>("size")
+    
+    let DB = try? Connection()
+    
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return products.count
@@ -136,7 +148,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     func csv(data: String, db: OpaquePointer?) {
         var result: [String] = []
         let rows = data.components(separatedBy: "\n")
-        let dataLength = rows.count - 1 //10000 //
+        let dataLength = 10000 //rows.count - 1 //
 //        try db.transaction {
 //            let rowid = try db.run(users.insert(email <- "betty@icloud.com"))
 //            try db.run(users.insert(email <- "cathy@icloud.com", managerId <- rowid))
@@ -154,19 +166,16 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             .documentDirectory, .userDomainMask, true
         ).first!
 
-        let DB = try? Connection()
-        let productsTab = Table("ProductsTab")
         
-        let productID = Expression<Int64>("productID")
-        let title = Expression<String?>("title")
-        let listPrice = Expression<Double>("listPrice")
-        let salesPrice = Expression<Double>("salesPrice")
-        let color = Expression<String?>("color")
-        let size = Expression<String>("size")
+
+        
+        
+        
+        
 
         try? DB?.run(productsTab.create { t in
                 t.column(productID, primaryKey: true)
-                t.column(title)
+                t.column(titleVal)
                 t.column(listPrice)
                 t.column(salesPrice)
                 t.column(color)
@@ -187,7 +196,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
              let columns = row.components(separatedBy: ",")
              //try docsTrans?.run(Int(columns[0]) ?? 0, columns[1], Double(columns[2]) ?? 0.0, Double(columns[3]) ?? 0.0, columns[4], columns[5])
              
-             let insert = productsTab.insert(productID <- Int64(columns[0]) ?? 0, title <- columns[1], listPrice <- Double(columns[2]) ?? 0.0, salesPrice <- Double(columns[3]) ?? 0.0, color <- columns[4], size <- columns[5])
+             let insert = productsTab.insert(productID <- Int64(columns[0]) ?? 0, titleVal <- columns[1], listPrice <- Double(columns[2]) ?? 0.0, salesPrice <- Double(columns[3]) ?? 0.0, color <- columns[4], size <- columns[5])
              let rowid = try? DB?.run(insert)
           }
             
@@ -274,6 +283,39 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
       sqlite3_finalize(queryStatement)
         tableView.reloadData()
     }
+    
+    func query2(){
+        products.removeAll()
+        let query = productsTab.select(productsTab[*])
+        //products = query
+       // for piece in try? DB?.prepare(query){
+            //products.append(
+        //}
+        let mapRowIterator = try? DB!.prepareRowIterator(query)
+        while let row = try? mapRowIterator?.failableNext() {
+                // Handle row
+            print(row[productID], row[listPrice], row[titleVal], row[salesPrice], row[color], row[size])
+            //let str = row[productID] + row[titleVal] + String(row[listPrice])
+            //let str2 = String(row[salesPrice]) + row[color] + row[size]
+            //var retrievedString = ""
+            //var fPointer: UnsafeMutablePointer<Float> = UnsafeMutablePointer.alloc(1)
+            //retrievedString += String(sqlite3_column_int64(&row, 0))
+            //if let name = row[0] as? String { products.append(name) }
+            products.append(row[titleVal]! + row[color]! + row[size])
+            //"title")
+//            let listPrice = Expression<Double>("listPrice")
+//            let salesPrice = Expression<Double>("salesPrice")
+//            let color = Expression<String?>("color")
+//            let size = Expression<String>("size")
+            //products.append( String(row[productID])) //+ row[1] + String(row[2]))// + String(row[3]) + row[4] + row[5])
+            //products.append("\String(row[0])\(row[1]) + String(row[2]) + String(row[3]) + row[4] + row[5])
+            }
+        tableView.reloadData()
+        //let query = productsTab.filter(productID = searchedVal)    //select("*")
+            //.filter(productID = searchedVal)
+                         //.order(email.desc, name) // ORDER BY "email" DESC, "name"
+                            
+    }
 
 
     
@@ -283,7 +325,7 @@ extension ViewController: UISearchBarDelegate {
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         print("SEARCHED")
         searchedVal = searchText
-        query()
+        query2()
     }
     
     func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
