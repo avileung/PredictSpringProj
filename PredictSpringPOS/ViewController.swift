@@ -28,7 +28,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     
     let productsTab = Table("ProductsTab")
     
-    let productID = Expression<Int64>("productID")
+    let productID = Expression<String>("productID")
     let titleVal = Expression<String?>("title")
     let listPrice = Expression<Double>("listPrice")
     let salesPrice = Expression<Double>("salesPrice")
@@ -194,7 +194,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
              }
              //try docsTrans?.run(Int(columns[0]) ?? 0, columns[1], Double(columns[2]) ?? 0.0, Double(columns[3]) ?? 0.0, columns[4], columns[5])
              
-             let insert = productsTab.insert(productID <- Int64(columns[0]) ?? 0, size <- row)
+             let insert = productsTab.insert(productID <- columns[0], size <- row)
              let rowid = try? DB?.run(insert)
           }
             
@@ -284,7 +284,10 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     
     func query2(){
         products.removeAll()
-        let query = productsTab.select(productsTab[*])
+        let queryPattern = Expression<String>(searchedVal + "%")
+        let query = productsTab.filter(productID.like(queryPattern))
+            //.filter(productID == "54") //productID.asSQL().hasPrefix(searchedVal))
+                                             //productsTab.filter(productID.asSQL().like(queryString)) //productsTab.select(productsTab[*])
         //products = query
        // for piece in try? DB?.prepare(query){
             //products.append(
