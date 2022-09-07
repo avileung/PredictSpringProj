@@ -175,13 +175,9 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
 
         try? DB?.run(productsTab.create { t in
                 t.column(productID, primaryKey: true)
-                t.column(titleVal)
-                t.column(listPrice)
-                t.column(salesPrice)
-                t.column(color)
                 t.column(size)
             })
-        let docsTrans = try? DB?.prepare("INSERT INTO ProductsTab (productID, title, listPrice, salesPrice, color, size) VALUES (?, ?, ?, ?, ?, ?);")
+        let docsTrans = try? DB?.prepare("INSERT INTO ProductsTab (productID, size) VALUES (?, ?);")
             
         try? DB?.transaction(.deferred) {
           //DispatchQueue.concurrentPerform(iterations: dataLength) { (i) in
@@ -190,13 +186,15 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
      
              let uploadPercentage = (i * 100)/dataLength
              print("Upload Percentage: " + String(uploadPercentage) + "%", i, dataLength)
-             let row = rows[i]
+             var row = rows[i]
              //TODO Malloc issue with array
              products.append(row)
              let columns = row.components(separatedBy: ",")
+             while row.removeFirst() != ","{
+             }
              //try docsTrans?.run(Int(columns[0]) ?? 0, columns[1], Double(columns[2]) ?? 0.0, Double(columns[3]) ?? 0.0, columns[4], columns[5])
              
-             let insert = productsTab.insert(productID <- Int64(columns[0]) ?? 0, titleVal <- columns[1], listPrice <- Double(columns[2]) ?? 0.0, salesPrice <- Double(columns[3]) ?? 0.0, color <- columns[4], size <- columns[5])
+             let insert = productsTab.insert(productID <- Int64(columns[0]) ?? 0, size <- row)
              let rowid = try? DB?.run(insert)
           }
             
@@ -294,14 +292,14 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         let mapRowIterator = try? DB!.prepareRowIterator(query)
         while let row = try? mapRowIterator?.failableNext() {
                 // Handle row
-            print(row[productID], row[listPrice], row[titleVal], row[salesPrice], row[color], row[size])
+            //print(row[productID], row[listPrice], row[titleVal], row[salesPrice], row[color], row[size])
             //let str = row[productID] + row[titleVal] + String(row[listPrice])
             //let str2 = String(row[salesPrice]) + row[color] + row[size]
             //var retrievedString = ""
             //var fPointer: UnsafeMutablePointer<Float> = UnsafeMutablePointer.alloc(1)
             //retrievedString += String(sqlite3_column_int64(&row, 0))
             //if let name = row[0] as? String { products.append(name) }
-            products.append(row[titleVal]! + row[color]! + row[size])
+            products.append(String(row[productID]) + row[size])
             //"title")
 //            let listPrice = Expression<Double>("listPrice")
 //            let salesPrice = Expression<Double>("salesPrice")
