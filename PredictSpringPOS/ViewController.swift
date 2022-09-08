@@ -14,6 +14,7 @@ import Foundation
 
 class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
     
+    @IBOutlet weak var testLabel: UILabel!
     //Table view where products will be displayed
     @IBOutlet weak var progressBar: UIProgressView!
     @IBOutlet weak var tableView: UITableView!
@@ -39,6 +40,10 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     //Database connection
     let DB = try? Connection()
     
+    var uploadPercentage = 0
+    
+    var timer = Timer()
+    
     override func viewDidLoad() {
         //Loads the view
         super.viewDidLoad()
@@ -50,7 +55,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         self.searchBar.delegate = self
         self.searchBar.showsCancelButton = true
 
-
+        testLabel.text = "HERE"
         progressBar.progress = 0.0
         progressBar.isHidden = false
         DispatchQueue.global(qos: .userInitiated).async {
@@ -60,14 +65,32 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             } else{
                 print("Error loading File")
             }
-            DispatchQueue.main.async {
-                //timer = NSTimer.scheduledTimerWithTimeInterval(1, target: self, selector: Selector("updateCounting"), userInfo: nil, repeats: true)
-                self.tableView.reloadData()
-                }
         }
+        tableView.reloadData()
+        startTimer()
+        //
         
 
     }
+    
+    func startTimer() {
+        timer.invalidate() // just in case this button is tapped multiple times
+       // start the timer
+       timer = Timer.scheduledTimer(timeInterval: 0.5, target: self, selector: #selector(timerAction), userInfo: nil, repeats: true)
+    }
+    
+    // called every time interval from the timer
+    @objc func timerAction() {
+            print("TIMER")
+        testLabel.text = String(uploadPercentage)
+        DispatchQueue.main.async {
+            self.tableView.reloadData()
+        }
+        if uploadPercentage == 100{
+            timer.invalidate()
+        }
+        }
+    
     
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
@@ -92,7 +115,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         //Format the data into an iterable
         let rows = data.components(separatedBy: "\n")
         //Constant that gives the length of the data set
-        let dataLength = 100000 //rows.count - 1 //
+        let dataLength = 100000 //rows.count - 1 //100000 //
         /*Create the table -> table has 2 columns, one for the product ID which is used to order and filter the values,
         and the other which just stores the rest of the values. Originally I had 6 columns, but decreasing the amount of tables made the inserts significantly more efficient */
         try? DB?.run(productsTab.create { t in
@@ -106,7 +129,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
          a lo, but kepy old commented code for reference */
         //DispatchQueue.concurrentPerform(iterations: dataLength) { (i) in
          for i in 1...dataLength {
-             let uploadPercentage = (i * 100)/dataLength
+             uploadPercentage = (i * 100)/dataLength
              //progressBar.progress = Float(uploadPercentage/100)
              //progressBar.setProgress(progressBar.progress, animated: true)
              print("Upload Percentage: " + String(uploadPercentage) + "%")

@@ -56,6 +56,13 @@
                                 <rect key="frame" x="132" y="147" width="150" height="4"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                             </progressView>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" text="Test" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="UHV-n4-fPF">
+                                <rect key="frame" x="186" y="159" width="33" height="21"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
@@ -64,6 +71,7 @@
                         <outlet property="progressBar" destination="uz9-1u-F7a" id="0hX-NX-jq8"/>
                         <outlet property="searchBar" destination="BNz-cG-y9M" id="S4u-ae-eWL"/>
                         <outlet property="tableView" destination="n0G-w6-iah" id="F43-OK-6HQ"/>
+                        <outlet property="testLabel" destination="UHV-n4-fPF" id="Or9-ed-HIz"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
