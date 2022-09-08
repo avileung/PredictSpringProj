@@ -55,9 +55,10 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         self.searchBar.delegate = self
         self.searchBar.showsCancelButton = true
 
-        testLabel.text = "HERE"
-        progressBar.progress = 0.0
+        testLabel.text = "Upload Percentage: 0"
+        progressBar.progress = 1.0
         progressBar.isHidden = false
+        productsForTable
         DispatchQueue.global(qos: .userInitiated).async {
             //Read Data from CSV File and upload ito Products Table
             if let data = self.readDataFromCSV(fileName: "prod1M", fileType: "csv") {
@@ -81,13 +82,15 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     
     // called every time interval from the timer
     @objc func timerAction() {
-            print("TIMER")
-        testLabel.text = String(uploadPercentage)
+        testLabel.text = "Upload Percentage: " + String(uploadPercentage)
+        let decimal = Float(uploadPercentage)/100.0
+        progressBar.progress = decimal
         DispatchQueue.main.async {
             self.tableView.reloadData()
         }
         if uploadPercentage == 100{
             timer.invalidate()
+            testLabel.text = ""
         }
         }
     
@@ -115,7 +118,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         //Format the data into an iterable
         let rows = data.components(separatedBy: "\n")
         //Constant that gives the length of the data set
-        let dataLength = 100000 //rows.count - 1 //100000 //
+        let dataLength = rows.count - 1 //100000 //100000 //
         /*Create the table -> table has 2 columns, one for the product ID which is used to order and filter the values,
         and the other which just stores the rest of the values. Originally I had 6 columns, but decreasing the amount of tables made the inserts significantly more efficient */
         try? DB?.run(productsTab.create { t in
@@ -137,7 +140,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
              let columns = row.components(separatedBy: ",")
              while !row.isEmpty && row.removeFirst() != ","{
              }
-             products.append(columns[0] + row)
+             productsForTable.append(columns[0] + row)
              let insert = productsTab.insert(productID <- columns[0], values <- row)
              let rowid = try? DB?.run(insert)
           }
