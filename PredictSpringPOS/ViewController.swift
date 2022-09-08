@@ -31,7 +31,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     
     //Constants used for storing variables in Table, 'ProductsTab'
     let productID = Expression<String>("productID")
-    let size = Expression<String>("size")
+    let values = Expression<String>("values")
     
     //Database connection
     let DB = try? Connection()
@@ -40,7 +40,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         //Loads the view
         super.viewDidLoad()
         /*Initialize table searchbar, delegates and data sources*/
-        self.tableView.register(ProductCell.self,
+        self.tableView.register(UITableViewCell.self,
                                forCellReuseIdentifier: "Cell")
         self.tableView.dataSource = self
         self.tableView.delegate = self
@@ -50,74 +50,71 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
 
         //Read Data from CSV File and upload ito Products Table
         if let data = readDataFromCSV(fileName: "prod1M", fileType: "csv") {
-            let csvRows = csv(data: data)
+            csv(data: data)
         } else{
             print("Error loading File")
         }
     }
     /*Function that returns data from csv file in String format*/
     func readDataFromCSV(fileName:String, fileType: String)-> String!{
-            guard let filepath = Bundle.main.path(forResource: fileName, ofType: fileType)
-                else {
-                    return nil
-            }
-            do {
-                var contents = try String(contentsOfFile: filepath, encoding: .utf8)
-                return contents
-            } catch {
-                print("File Read Error for file \(filepath)")
-                return nil
-            }
+        guard let filepath = Bundle.main.path(forResource: fileName, ofType: fileType) else {
+            return nil
         }
+        do {
+            var contents = try String(contentsOfFile: filepath, encoding: .utf8)
+            return contents
+        } catch {
+            print("File Read Error for file \(filepath)")
+            return nil
+        }
+    }
     
-    /*Function uploads to SQL Database in about 90 seconds on currett devices tested. However, if processsor was slower or data sett was larger I would look more inot concurency andd multi threading.  */
+    /*This function takes the string returned by the previous function, converts the string into an iterable value, and then iterates over the individual values to upload them into a SQL database. The function uses bulk insert from SQlite library. Originally I was using the SQLite3 library which did not have functionality for bulk inserts, making hte upload time significantly slower. Function uploads to SQL Database in about 90 seconds on current devices tested. However, if processsor was slower or data set was larger I would look more into concurency andd multi threading. */
     func csv(data: String) {
-        var result: [String] = []
+        //Format the data into an iterable
         let rows = data.components(separatedBy: "\n")
+        //Constant that gives the length of the data set
         let dataLength = 10000 //rows.count - 1 //
-        let path = NSSearchPathForDirectoriesInDomains(
-            .documentDirectory, .userDomainMask, true
-        ).first!
+        /*Create the table -> table has 2 columns, one for the product ID which is used to order and filter the values,
+        and the other which just stores the rest of the values. Originally I had 6 columns, but decreasing the amount of tables made the inserts significantly more efficient */
         try? DB?.run(productsTab.create { t in
                 t.column(productID, primaryKey: true)
-                t.column(size)
-            })
-        let docsTrans = try? DB?.prepare("INSERT INTO ProductsTab (productID, size) VALUES (?, ?);")
+                t.column(values)
+        })
+        let docsTrans = try? DB?.prepare("INSERT INTO ProductsTab (productID, values) VALUES (?, ?);")
         try? DB?.transaction(.deferred) {
-          //DispatchQueue.concurrentPerform(iterations: dataLength) { (i) in
+        /*When working with the SQLite3 library, there was no functionality for bulk inserts so I used the
+         function below to perfrom things concurrently. However, doing bulk inserts in SQlite library improved time
+         a lo, but kepy old commented code for reference */
+        //DispatchQueue.concurrentPerform(iterations: dataLength) { (i) in
          for i in 1...dataLength {
              let uploadPercentage = (i * 100)/dataLength
              print("Upload Percentage: " + String(uploadPercentage) + "%")
              var row = rows[i]
-             products.append(row)
              let columns = row.components(separatedBy: ",")
              while !row.isEmpty && row.removeFirst() != ","{
              }
-             let insert = productsTab.insert(productID <- columns[0], size <- row)
+             products.append(columns[0] + row)
+             let insert = productsTab.insert(productID <- columns[0], values <- row)
              let rowid = try? DB?.run(insert)
           }
         }
     }
-    
+    /*Function to tell the tableview how many total rows there will be*/
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return products.count
     }
-    
-
-
-    
+    /*Function that returns the specific text to be displayed in the tableview cell*/
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell",
-                                 for: indexPath) //as! ProductCell
-        let test = ["fdsfdss", "fsfdsd", "fdsfd"]
+                                 for: indexPath) 
         cell.textLabel?.text = products[indexPath.row]
         cell.textLabel?.font = cell.textLabel?.font.withSize(8)
-        //cell.detailTextLabel?.text = products[indexPath.row]
         return cell
     }
     
-    // Create a standard header that includes the returned text.
+    /*Header for the tableview*/
     func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
             let headerView = UIView.init(frame: CGRect.init(x: 0, y: 0, width: tableView.frame.width, height: 50))
             
@@ -125,26 +122,22 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             label.frame = CGRect.init(x: 0, y: 0, width: headerView.frame.width, height: headerView.frame.height)
             label.text = "Notification Times"
             label.font = .systemFont(ofSize: 16)
-            //label.textColor = .yellow
-            
             headerView.addSubview(label)
-            
             return headerView
         }
-    
+    /*Function that gets called everytime the user changes the text value to search for the product id.
+     This function first makes a query to the database, and then changes the products array displayed
+     that is then displayed by the tableview. */
     func query(){
         products.removeAll()
         let queryPattern = Expression<String>(searchedVal + "%")
         let query = productsTab.filter(productID.like(queryPattern))
         let mapRowIterator = try? DB!.prepareRowIterator(query)
         while let row = try? mapRowIterator?.failableNext() {
-            products.append(String(row[productID]) + row[size])
-            }
+            products.append(String(row[productID]) + row[values])
+        }
         tableView.reloadData()
     }
-
-
-    
 }
 
 extension ViewController: UISearchBarDelegate {
