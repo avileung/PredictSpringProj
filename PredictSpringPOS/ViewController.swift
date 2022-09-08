@@ -47,6 +47,8 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     
     var frontEndLoading = true
     
+    var uploadLabelString = "Upload Percentage: "
+    
     override func viewDidLoad() {
         //Loads the view
         super.viewDidLoad()
@@ -103,17 +105,24 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     
     // called every time interval from the timer
     @objc func timerAction() {
-        uploadLabel.text = "Upload Percentage: " + String(uploadPercentage)
+        uploadLabel.text = uploadLabelString + String(uploadPercentage)
         let decimal = Float(uploadPercentage)/100.0
         progressBar.progress = decimal
         DispatchQueue.main.async {
             self.tableView.reloadData()
         }
         if uploadPercentage == 100{
-            timer.invalidate()
-            uploadLabel.text = ""
-            progressBar.isHidden = true
-            searchBar.isHidden = false
+            if frontEndLoading{
+                uploadLabelString = "BackEnd Loading: "
+                frontEndLoading = false
+                uploadPercentage = 0
+                searchBar.isHidden = false
+            } else{
+                timer.invalidate()
+                uploadLabel.text = ""
+                progressBar.isHidden = true
+                
+            }
         }
         }
     
