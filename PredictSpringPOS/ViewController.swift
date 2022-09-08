@@ -15,14 +15,17 @@ import Foundation
 class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
     
     //Table view where products will be displayed
+    @IBOutlet weak var progressBar: UIProgressView!
     @IBOutlet weak var tableView: UITableView!
     //SearchBar to query from database
     @IBOutlet weak var searchBar: UISearchBar!
     
     @IBOutlet weak var productIDLabel: UILabel!
     
-    //Array of products used to for the table
+    //Array of products
     var products: [String] = []
+    //Array of products used to for the table
+    var productsForTable: [String] = []
     //Current value beign searched -- corresponds to product ID
     var searchedVal = ""
     
@@ -46,14 +49,29 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         self.tableView.delegate = self
         self.searchBar.delegate = self
         self.searchBar.showsCancelButton = true
+
+
+        progressBar.progress = 0.0
+        progressBar.isHidden = false
+        DispatchQueue.global(qos: .userInitiated).async {
+            //Read Data from CSV File and upload ito Products Table
+            if let data = self.readDataFromCSV(fileName: "prod1M", fileType: "csv") {
+                self.csv(data: data)
+            } else{
+                print("Error loading File")
+            }
+            DispatchQueue.main.async {
+                //timer = NSTimer.scheduledTimerWithTimeInterval(1, target: self, selector: Selector("updateCounting"), userInfo: nil, repeats: true)
+                self.tableView.reloadData()
+                }
+        }
         
 
-        //Read Data from CSV File and upload ito Products Table
-        if let data = readDataFromCSV(fileName: "prod1M", fileType: "csv") {
-            csv(data: data)
-        } else{
-            print("Error loading File")
-        }
+    }
+    
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        // Dispose of any resources that can be recreated.
     }
     /*Function that returns data from csv file in String format*/
     func readDataFromCSV(fileName:String, fileType: String)-> String!{
@@ -74,7 +92,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         //Format the data into an iterable
         let rows = data.components(separatedBy: "\n")
         //Constant that gives the length of the data set
-        let dataLength = 10000 //rows.count - 1 //
+        let dataLength = 100000 //rows.count - 1 //
         /*Create the table -> table has 2 columns, one for the product ID which is used to order and filter the values,
         and the other which just stores the rest of the values. Originally I had 6 columns, but decreasing the amount of tables made the inserts significantly more efficient */
         try? DB?.run(productsTab.create { t in
@@ -89,6 +107,8 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         //DispatchQueue.concurrentPerform(iterations: dataLength) { (i) in
          for i in 1...dataLength {
              let uploadPercentage = (i * 100)/dataLength
+             //progressBar.progress = Float(uploadPercentage/100)
+             //progressBar.setProgress(progressBar.progress, animated: true)
              print("Upload Percentage: " + String(uploadPercentage) + "%")
              var row = rows[i]
              let columns = row.components(separatedBy: ",")
@@ -99,17 +119,19 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
              let rowid = try? DB?.run(insert)
           }
         }
+        self.productsForTable = products
+        
     }
     /*Function to tell the tableview how many total rows there will be*/
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return products.count
+        return productsForTable.count
     }
     /*Function that returns the specific text to be displayed in the tableview cell*/
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell",
                                  for: indexPath) 
-        cell.textLabel?.text = products[indexPath.row]
+        cell.textLabel?.text = productsForTable[indexPath.row]
         cell.textLabel?.font = cell.textLabel?.font.withSize(8)
         return cell
     }
@@ -119,8 +141,8 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             let headerView = UIView.init(frame: CGRect.init(x: 0, y: 0, width: tableView.frame.width, height: 50))
             
             let label = UILabel()
-            label.frame = CGRect.init(x: 0, y: 0, width: headerView.frame.width, height: headerView.frame.height)
-            label.text = "Notification Times"
+            label.frame = CGRect.init(x: 16, y: -20, width: headerView.frame.width, height: headerView.frame.height)
+            label.text = "Product ID"
             label.font = .systemFont(ofSize: 16)
             headerView.addSubview(label)
             return headerView
@@ -129,13 +151,20 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
      This function first makes a query to the database, and then changes the products array displayed
      that is then displayed by the tableview. */
     func query(){
-        products.removeAll()
+        //products.removeAll()
         let queryPattern = Expression<String>(searchedVal + "%")
         let query = productsTab.filter(productID.like(queryPattern))
-        let mapRowIterator = try? DB!.prepareRowIterator(query)
-        while let row = try? mapRowIterator?.failableNext() {
-            products.append(String(row[productID]) + row[values])
+        func startsWith(word: String) -> Bool{
+            word.starts(with: searchedVal)
         }
+        productsForTable = products.filter(startsWith)
+//        for piece in 0...products.count - 1{
+//            products[i] = "TESTTT"
+//        }
+        //let mapRowIterator = try? DB!.prepareRowIterator(query)
+//        while let row = try? mapRowIterator?.failableNext() {
+//            products.append(String(row[productID]) + row[values])
+//        }
         tableView.reloadData()
     }
 }
