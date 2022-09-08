@@ -14,14 +14,15 @@ import Foundation
 
 class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
     
-    @IBOutlet weak var testLabel: UILabel!
+
+    @IBOutlet weak var uploadLabel: UILabel!
     //Table view where products will be displayed
     @IBOutlet weak var progressBar: UIProgressView!
     @IBOutlet weak var tableView: UITableView!
     //SearchBar to query from database
     @IBOutlet weak var searchBar: UISearchBar!
     
-    @IBOutlet weak var productIDLabel: UILabel!
+    //@IBOutlet weak var productIDLabel: UILabel!
     
     //Array of products
     var products: [String] = []
@@ -44,6 +45,8 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     
     var timer = Timer()
     
+    var frontEndLoading = true
+    
     override func viewDidLoad() {
         //Loads the view
         super.viewDidLoad()
@@ -55,23 +58,41 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         self.searchBar.delegate = self
         self.searchBar.showsCancelButton = true
 
-        testLabel.text = "Upload Percentage: 0"
+        uploadLabel.text = "Upload Percentage: 0"
         progressBar.progress = 1.0
         progressBar.isHidden = false
+        searchBar.isHidden = true
         productsForTable
-        DispatchQueue.global(qos: .userInitiated).async {
+        
             //Read Data from CSV File and upload ito Products Table
             if let data = self.readDataFromCSV(fileName: "prod1M", fileType: "csv") {
-                self.csv(data: data)
+                DispatchQueue.global(qos: .userInitiated).async {
+                    self.getDataForUI(data: data)
+                    self.csv(data: data)
+                }
             } else{
                 print("Error loading File")
             }
-        }
-        tableView.reloadData()
+        
+        
         startTimer()
         //
         
 
+    }
+    func getDataForUI(data: String){
+        let rows = data.components(separatedBy: "\n")
+        //Constant that gives the length of the data set
+        let dataLength = rows.count - 1 //100000 //100000 //
+        for i in 1...dataLength {
+            uploadPercentage = (i * 100)/dataLength
+            var row = rows[i]
+            let columns = row.components(separatedBy: ",")
+            while !row.isEmpty && row.removeFirst() != ","{
+            }
+            products.append(columns[0] + row)
+            productsForTable.append(columns[0] + row)
+        }
     }
     
     func startTimer() {
@@ -82,7 +103,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     
     // called every time interval from the timer
     @objc func timerAction() {
-        testLabel.text = "Upload Percentage: " + String(uploadPercentage)
+        uploadLabel.text = "Upload Percentage: " + String(uploadPercentage)
         let decimal = Float(uploadPercentage)/100.0
         progressBar.progress = decimal
         DispatchQueue.main.async {
@@ -90,7 +111,9 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         }
         if uploadPercentage == 100{
             timer.invalidate()
-            testLabel.text = ""
+            uploadLabel.text = ""
+            progressBar.isHidden = true
+            searchBar.isHidden = false
         }
         }
     
@@ -140,12 +163,11 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
              let columns = row.components(separatedBy: ",")
              while !row.isEmpty && row.removeFirst() != ","{
              }
-             productsForTable.append(columns[0] + row)
              let insert = productsTab.insert(productID <- columns[0], values <- row)
              let rowid = try? DB?.run(insert)
           }
         }
-        self.productsForTable = products
+       // self.productsForTable = products
         
     }
     /*Function to tell the tableview how many total rows there will be*/
