@@ -14,15 +14,14 @@ import Foundation
 
 class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
     
-
+    //Label that gives specific upload percentage
     @IBOutlet weak var uploadLabel: UILabel!
     //Table view where products will be displayed
     @IBOutlet weak var progressBar: UIProgressView!
+    //TableView where products will be displayed
     @IBOutlet weak var tableView: UITableView!
     //SearchBar to query from database
     @IBOutlet weak var searchBar: UISearchBar!
-    
-    //@IBOutlet weak var productIDLabel: UILabel!
     
     //Array of products
     var products: [String] = []
@@ -40,97 +39,56 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     
     //Database connection
     let DB = try? Connection()
-    
+    //Percentage of data that is uploaded
     var uploadPercentage = 0
-    
+    //Timer to display values for upload percentage while data is being uploaded in background thread
     var timer = Timer()
-    
+    //Boolean variable to indicate whether front end or back end data is being loaded
     var frontEndLoading = true
-    
+    //String to be displayed in uploadLabel
     var uploadLabelString = "Upload Percentage: "
     
     override func viewDidLoad() {
         //Loads the view
         super.viewDidLoad()
-        /*Initialize table searchbar, delegates and data sources*/
+        /*Initialize table searchbar, labels, delegates and data sources*/
         self.tableView.register(UITableViewCell.self,
                                forCellReuseIdentifier: "Cell")
         self.tableView.dataSource = self
         self.tableView.delegate = self
         self.searchBar.delegate = self
         self.searchBar.showsCancelButton = true
-
         uploadLabel.text = "Upload Percentage: 0"
         progressBar.progress = 1.0
         progressBar.isHidden = false
         searchBar.isHidden = true
-        productsForTable
         
-            //Read Data from CSV File and upload ito Products Table
-            if let data = self.readDataFromCSV(fileName: "prod1M", fileType: "csv") {
-                DispatchQueue.global(qos: .userInitiated).async {
-                    self.getDataForUI(data: data)
-                    self.csv(data: data)
-                }
-            } else{
-                print("Error loading File")
+        //Read Data from CSV File
+        if let data = self.readDataFromCSV(fileName: "prod1M", fileType: "csv") {
+            /*This command lets us use the background thread to load data. Furthermore, there are
+             two seperate functions, one that loads the data for the UI and the other that loads it
+             into the SQL database. These two functions are split up because loading data in teh database
+             takes more time and teh User Interface does not depend on it, so it can be done in background
+             once UI of app is loaded
+             */
+            DispatchQueue.global(qos: .userInitiated).async {
+                self.getDataForUI(data: data)
+                self.csv(data: data)
             }
-        
-        
+        } else{
+            print("Error loading File")
+        }
+        /*Timer that fires so that we can update the table view and loading bars.
+         THis is done because UIKit does not support multiple threads, so we have to
+         process data in a background thread, and store that data in a global variable so the main thread
+         that has access to the UI, can access the variables
+         */
         startTimer()
-        //
+        
         
 
     }
-    func getDataForUI(data: String){
-        let rows = data.components(separatedBy: "\n")
-        //Constant that gives the length of the data set
-        let dataLength = rows.count - 1 //100000 //100000 //
-        for i in 1...dataLength {
-            uploadPercentage = (i * 100)/dataLength
-            var row = rows[i]
-            let columns = row.components(separatedBy: ",")
-            while !row.isEmpty && row.removeFirst() != ","{
-            }
-            products.append(columns[0] + row)
-            productsForTable.append(columns[0] + row)
-        }
-    }
     
-    func startTimer() {
-        timer.invalidate() // just in case this button is tapped multiple times
-       // start the timer
-       timer = Timer.scheduledTimer(timeInterval: 0.5, target: self, selector: #selector(timerAction), userInfo: nil, repeats: true)
-    }
-    
-    // called every time interval from the timer
-    @objc func timerAction() {
-        uploadLabel.text = uploadLabelString + String(uploadPercentage)
-        let decimal = Float(uploadPercentage)/100.0
-        progressBar.progress = decimal
-        DispatchQueue.main.async {
-            self.tableView.reloadData()
-        }
-        if uploadPercentage == 100{
-            if frontEndLoading{
-                uploadLabelString = "BackEnd Loading: "
-                frontEndLoading = false
-                uploadPercentage = 0
-                searchBar.isHidden = false
-            } else{
-                timer.invalidate()
-                uploadLabel.text = ""
-                progressBar.isHidden = true
-                
-            }
-        }
-        }
-    
-    
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
     /*Function that returns data from csv file in String format*/
     func readDataFromCSV(fileName:String, fileType: String)-> String!{
         guard let filepath = Bundle.main.path(forResource: fileName, ofType: fileType) else {
@@ -144,6 +102,60 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             return nil
         }
     }
+    /*Retrieves the data for the table*/
+    func getDataForUI(data: String){
+        let rows = data.components(separatedBy: "\n")
+        //Constant that gives the length of the data set
+        let dataLength = 100000 //rows.count - 1 //100000 //
+        for i in 1...dataLength {
+            uploadPercentage = (i * 100)/dataLength
+            var row = rows[i]
+            //Format strings and add it to arrays
+            let columns = row.components(separatedBy: ",")
+            while !row.isEmpty && row.removeFirst() != ","{
+            }
+            row = columns[0] + ", " + row
+            products.append(row)
+            productsForTable.append(row)
+        }
+    }
+    
+    /*Timer*/
+    func startTimer() {
+       timer = Timer.scheduledTimer(timeInterval: 0.5, target: self, selector: #selector(timerAction), userInfo: nil, repeats: true)
+    }
+    
+    /*called every time interval(.5 seconds) from the timer. This operates in the main thread.*/
+    @objc func timerAction() {
+        uploadLabel.text = uploadLabelString + String(uploadPercentage)
+        let decimal = Float(uploadPercentage)/100.0
+        progressBar.progress = decimal
+        DispatchQueue.main.async {
+            self.tableView.reloadData()
+        }
+        if uploadPercentage == 100{
+            if frontEndLoading{
+                uploadLabelString = "DataBase Loading: "
+                frontEndLoading = false
+                uploadPercentage = 0
+                searchBar.isHidden = false
+            } else{
+                /*This statement is called at the end after the database has been loaded.
+                 The function turns of the timer*/
+                timer.invalidate()
+                uploadLabel.text = ""
+                progressBar.isHidden = true
+                
+            }
+        }
+        }
+    
+    
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        // Dispose of any resources that can be recreated.
+    }
+
     
     /*This function takes the string returned by the previous function, converts the string into an iterable value, and then iterates over the individual values to upload them into a SQL database. The function uses bulk insert from SQlite library. Originally I was using the SQLite3 library which did not have functionality for bulk inserts, making hte upload time significantly slower. Function uploads to SQL Database in about 90 seconds on current devices tested. However, if processsor was slower or data set was larger I would look more into concurency andd multi threading. */
     func csv(data: String) {
@@ -209,20 +221,18 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
      that is then displayed by the tableview. */
     func query(){
         //products.removeAll()
-        let queryPattern = Expression<String>(searchedVal + "%")
-        let query = productsTab.filter(productID.like(queryPattern))
-        func startsWith(word: String) -> Bool{
-            word.starts(with: searchedVal)
+        if searchedVal.contains(","){
+            productsForTable.removeAll()
+            tableView.reloadData()
+        } else{
+            let queryPattern = Expression<String>(searchedVal + "%")
+            let query = productsTab.filter(productID.like(queryPattern))
+            func startsWith(word: String) -> Bool{
+                word.starts(with: searchedVal)
+            }
+            productsForTable = products.filter(startsWith)
+            tableView.reloadData()
         }
-        productsForTable = products.filter(startsWith)
-//        for piece in 0...products.count - 1{
-//            products[i] = "TESTTT"
-//        }
-        //let mapRowIterator = try? DB!.prepareRowIterator(query)
-//        while let row = try? mapRowIterator?.failableNext() {
-//            products.append(String(row[productID]) + row[values])
-//        }
-        tableView.reloadData()
     }
 }
 
