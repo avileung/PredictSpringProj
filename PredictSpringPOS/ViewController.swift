@@ -11,7 +11,7 @@ import UIKit
 import SQLite3
 import SQLite
 import Foundation
-
+//TODO -- FIX NUMBER OF ROWS TO BE 10 OR 20 at a time
 class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
     
     //Label that gives specific upload percentage
@@ -106,7 +106,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     func getDataForUI(data: String){
         let rows = data.components(separatedBy: "\n")
         //Constant that gives the length of the data set
-        let dataLength = 100000 //rows.count - 1 //100000 //
+        let dataLength = rows.count - 1 //100000 //100000 //
         for i in 1...dataLength {
             uploadPercentage = (i * 100)/dataLength
             var row = rows[i]
@@ -223,7 +223,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         //products.removeAll()
         if searchedVal.contains(","){
             productsForTable.removeAll()
-            tableView.reloadData()
+            //tableView.reloadData()
         } else{
             let queryPattern = Expression<String>(searchedVal + "%")
             let query = productsTab.filter(productID.like(queryPattern))
@@ -231,7 +231,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
                 word.starts(with: searchedVal)
             }
             productsForTable = products.filter(startsWith)
-            tableView.reloadData()
+            
         }
     }
 }
@@ -240,11 +240,13 @@ extension ViewController: UISearchBarDelegate {
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         searchedVal = searchText
         query()
+        tableView.reloadData()
     }
     
     func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
         searchBar.text = ""
         searchedVal = ""
         query()
+        tableView.reloadData()
     }
 }
