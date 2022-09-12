@@ -63,6 +63,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         progressBar.isHidden = false
         searchBar.isHidden = true
         
+        tableView.rowHeight = tableView.frame.height/20
         //Read Data from CSV File
         if let data = self.readDataFromCSV(fileName: "prod1M", fileType: "csv") {
             /*This command lets us use the background thread to load data. Furthermore, there are
@@ -73,7 +74,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
              */
             DispatchQueue.global(qos: .userInitiated).async {
                 self.getDataForUI(data: data)
-                self.csv(data: data)
+                //self.csv(data: data)
             }
         } else{
             print("Error loading File")
@@ -191,7 +192,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
        // self.productsForTable = products
         
     }
-    /*Function to tell the tableview how many total rows there will be*/
+    /*Function to tell the tableview how many rows there will be*/
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return productsForTable.count
     }
