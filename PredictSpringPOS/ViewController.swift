@@ -11,7 +11,6 @@ import UIKit
 import SQLite3
 import SQLite
 import Foundation
-//TODO -- FIX NUMBER OF ROWS TO BE 10 OR 20 at a time
 class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
     
     //Label that gives specific upload percentage
@@ -62,9 +61,13 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         progressBar.progress = 1.0
         progressBar.isHidden = false
         searchBar.isHidden = true
-        
+        //Configure the height of each cell, so that 10 cells are displayed at a time
         tableView.rowHeight = tableView.frame.height/20
+        
         //Read Data from CSV File
+        /*Spec says app takes file name as input, but does not specify whether that is user input.
+         After making beta version I would clarify this, and adjust functionality accordingly. 
+         */
         if let data = self.readDataFromCSV(fileName: "prod1M", fileType: "csv") {
             /*This command lets us use the background thread to load data. Furthermore, there are
              two seperate functions, one that loads the data for the UI and the other that loads it
@@ -74,7 +77,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
              */
             DispatchQueue.global(qos: .userInitiated).async {
                 self.getDataForUI(data: data)
-                //self.csv(data: data)
+                self.csv(data: data)
             }
         } else{
             print("Error loading File")
@@ -163,14 +166,16 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         //Format the data into an iterable
         let rows = data.components(separatedBy: "\n")
         //Constant that gives the length of the data set
-        let dataLength = rows.count - 1 //100000 //100000 //
+        let dataLength = rows.count - 1 //100000 //
         /*Create the table -> table has 2 columns, one for the product ID which is used to order and filter the values,
         and the other which just stores the rest of the values. Originally I had 6 columns, but decreasing the amount of tables made the inserts significantly more efficient */
         try? DB?.run(productsTab.create { t in
                 t.column(productID, primaryKey: true)
                 t.column(values)
         })
-        let docsTrans = try? DB?.prepare("INSERT INTO ProductsTab (productID, values) VALUES (?, ?);")
+        //Syntax Error Thrown, but all values get uploaded to database as shown in tests, so must be error in library
+        print("Syntax Error Thrown, but all values get uploaded to database as shown in tests, so must be error in library")
+        let docsTrans = try? DB?.prepare("INSERT INTO ProductsTab (productID, values) VALUES (?, ?)")
         try? DB?.transaction(.deferred) {
         /*When working with the SQLite3 library, there was no functionality for bulk inserts so I used the
          function below to perfrom things concurrently. However, doing bulk inserts in SQlite library improved time
@@ -180,7 +185,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
              uploadPercentage = (i * 100)/dataLength
              //progressBar.progress = Float(uploadPercentage/100)
              //progressBar.setProgress(progressBar.progress, animated: true)
-             print("Upload Percentage: " + String(uploadPercentage) + "%")
+             //print("Upload Percentage: " + String(uploadPercentage) + "%")
              var row = rows[i]
              let columns = row.components(separatedBy: ",")
              while !row.isEmpty && row.removeFirst() != ","{
