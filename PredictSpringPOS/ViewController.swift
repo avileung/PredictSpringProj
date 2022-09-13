@@ -2,7 +2,7 @@
 //  ViewController.swift
 //  PredictSpringPOS
 //
-//  Created by Avi L on 9/4/22.
+//  Created by Avi L
 //
 
 import UIKit
@@ -15,7 +15,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     
     //Label that gives specific upload percentage
     @IBOutlet weak var uploadLabel: UILabel!
-    //Table view where products will be displayed
+    //Progress Bar to show upload percentage
     @IBOutlet weak var progressBar: UIProgressView!
     //TableView where products will be displayed
     @IBOutlet weak var tableView: UITableView!
@@ -64,26 +64,36 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         //Configure the height of each cell, so that 10 cells are displayed at a time
         tableView.rowHeight = tableView.frame.height/20
         
+    
+      
+        
         //Read Data from CSV File
         /*Spec says app takes file name as input, but does not specify whether that is user input.
          After making beta version I would clarify this, and adjust functionality accordingly. 
          */
-        if let data = self.readDataFromCSV(fileName: "prod1M", fileType: "csv") {
-            /*This command lets us use the background thread to load data. Furthermore, there are
-             two seperate functions, one that loads the data for the UI and the other that loads it
-             into the SQL database. These two functions are split up because loading data in teh database
-             takes more time and teh User Interface does not depend on it, so it can be done in background
-             once UI of app is loaded
-             */
-            DispatchQueue.global(qos: .userInitiated).async {
-                self.getDataForUI(data: data)
-                self.csv(data: data)
+        DispatchQueue.global(qos: .userInitiated).async {
+            self.retrieveFileFromUrl()
+            let documentsUrl:URL =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let destinationFileUrl = documentsUrl.appendingPathComponent("downloadedFile.csv")
+            let data = try? Data(contentsOf: destinationFileUrl, options: [.dataReadingMapped, .uncached])
+            if let data = self.readDataFromCSV(fileName: "downloadedFile", fileType: "csv") {
+                /*This command lets us use the background thread to load data. Furthermore, there are
+                 two seperate functions, one that loads the data for the UI and the other that loads it
+                 into the SQL database. These two functions are split up because loading data in the database
+                 takes more time and the User Interface does not depend on it, so it can be done in background
+                 once UI of app is loaded
+                 */
+                
+                    
+                    self.getDataForUI(data: data)
+                    self.csv(data: data)
+                
+            } else{
+                print("Error loading File")
             }
-        } else{
-            print("Error loading File")
         }
         /*Timer that fires so that we can update the table view and loading bars.
-         THis is done because UIKit does not support multiple threads, so we have to
+         This is done because UIKit does not support multiple threads, so we have to
          process data in a background thread, and store that data in a global variable so the main thread
          that has access to the UI, can access the variables
          */
@@ -91,6 +101,58 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         
         
 
+    }
+    
+    func retrieveFileFromUrl(){
+        // Create destination URL
+        let documentsUrl:URL =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let destinationFileUrl = Bundle.main.bundleURL.appendingPathComponent("downloadedFile.csv")
+        
+        do {
+            try FileManager.default.removeItem(at: destinationFileUrl)
+        } catch let error as NSError {
+            print("Error: \(error.domain)")
+        }
+
+        //Create URL to the source file you want to download
+        let fileURL = URL(string: "https://drive.google.com/u/1/uc?id=16jxfVYEM04175AMneRlT0EKtaDhhdrrv&export=download")
+
+        let sessionConfig = URLSessionConfiguration.default
+        let session = URLSession(configuration: sessionConfig)
+
+        let request = URLRequest(url:fileURL!)
+
+        let task = session.downloadTask(with: request) { (tempLocalUrl, response, error) in
+            if let tempLocalUrl = tempLocalUrl, error == nil {
+                // Success
+                if let statusCode = (response as? HTTPURLResponse)?.statusCode {
+                    print("Successfully downloaded. Status code: \(statusCode)")
+                }
+
+                do {
+                    try FileManager.default.copyItem(at: tempLocalUrl, to: destinationFileUrl)
+                } catch (let writeError) {
+                    print("Error creating a file \(destinationFileUrl) : \(writeError)")
+                }
+
+            } else {
+                print("Error took place while downloading a file. Error description: %@", error?.localizedDescription);
+            }
+        }
+        task.resume()
+    }
+    
+    func getCSVData() -> Array<String> {
+        do {
+            let content = try String(contentsOfFile: "./downloadedFile.csv")
+            let parsedCSV: [String] = content.components(
+                separatedBy: "\n"
+            ).map{ $0.components(separatedBy: ",")[0] }
+            return parsedCSV
+        }
+        catch {
+            return []
+        }
     }
     
     /*Function that returns data from csv file in String format*/
@@ -115,12 +177,10 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             uploadPercentage = (i * 100)/dataLength
             var row = rows[i]
             //Format strings and add it to arrays
-            let columns = row.components(separatedBy: ",")
-            while !row.isEmpty && row.removeFirst() != ","{
+            if row != ""{
+                products.append(row)
+                productsForTable.append(row)
             }
-            row = columns[0] + ", " + row
-            products.append(row)
-            productsForTable.append(row)
         }
     }
     
@@ -129,7 +189,8 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
        timer = Timer.scheduledTimer(timeInterval: 0.5, target: self, selector: #selector(timerAction), userInfo: nil, repeats: true)
     }
     
-    /*called every time interval(.5 seconds) from the timer. This operates in the main thread.*/
+    /*called every time interval(.5 seconds) from the timer. This operates in the main thread
+     and interacts with the UIKit since work inte hbackground thread cannot do this.*/
     @objc func timerAction() {
         uploadLabel.text = uploadLabelString + String(uploadPercentage)
         let decimal = Float(uploadPercentage)/100.0
@@ -145,7 +206,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
                 searchBar.isHidden = false
             } else{
                 /*This statement is called at the end after the database has been loaded.
-                 The function turns of the timer*/
+                 The function turns off the timer*/
                 timer.invalidate()
                 uploadLabel.text = ""
                 progressBar.isHidden = true
@@ -161,7 +222,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     }
 
     
-    /*This function takes the string returned by the previous function, converts the string into an iterable value, and then iterates over the individual values to upload them into a SQL database. The function uses bulk insert from SQlite library. Originally I was using the SQLite3 library which did not have functionality for bulk inserts, making hte upload time significantly slower. Function uploads to SQL Database in about 90 seconds on current devices tested. However, if processsor was slower or data set was larger I would look more into concurency andd multi threading. */
+    /*This function takes the string returned by the previous function, converts the string into an iterable value, and then iterates over the individual values to upload them into a SQL database. The function uses bulk insert from SQlite library. Originally I was using the SQLite3 library which did not have functionality for bulk inserts, making the upload time significantly slower. */
     func csv(data: String) {
         //Format the data into an iterable
         let rows = data.components(separatedBy: "\n")
@@ -174,7 +235,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
                 t.column(values)
         })
         //Syntax Error Thrown, but all values get uploaded to database as shown in tests, so must be error in library
-        print("Syntax Error Thrown, but all values get uploaded to database as shown in tests, so must be error in library")
+        print("Syntax Error Thrown, but all values get uploaded to database as shown in tests, so assume error in library")
         let docsTrans = try? DB?.prepare("INSERT INTO ProductsTab (productID, values) VALUES (?, ?)")
         try? DB?.transaction(.deferred) {
         /*When working with the SQLite3 library, there was no functionality for bulk inserts so I used the
@@ -183,19 +244,15 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         //DispatchQueue.concurrentPerform(iterations: dataLength) { (i) in
          for i in 1...dataLength {
              uploadPercentage = (i * 100)/dataLength
-             //progressBar.progress = Float(uploadPercentage/100)
-             //progressBar.setProgress(progressBar.progress, animated: true)
-             //print("Upload Percentage: " + String(uploadPercentage) + "%")
              var row = rows[i]
              let columns = row.components(separatedBy: ",")
-             while !row.isEmpty && row.removeFirst() != ","{
+             if row != ""{
+                 row.removeFirst(columns[0].count + 1)
+                 let insert = productsTab.insert(productID <- columns[0], values <- row)
+                 let rowid = try? DB?.run(insert)
              }
-             let insert = productsTab.insert(productID <- columns[0], values <- row)
-             let rowid = try? DB?.run(insert)
           }
         }
-       // self.productsForTable = products
-        
     }
     /*Function to tell the tableview how many rows there will be*/
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -207,29 +264,29 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell",
                                  for: indexPath) 
         cell.textLabel?.text = productsForTable[indexPath.row]
-        cell.textLabel?.font = cell.textLabel?.font.withSize(8)
+        //cell.textLabel?.font = cell.textLabel?.font.withSize(8)
+        cell.textLabel?.adjustsFontSizeToFitWidth = true
         return cell
     }
     
     /*Header for the tableview*/
     func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
             let headerView = UIView.init(frame: CGRect.init(x: 0, y: 0, width: tableView.frame.width, height: 50))
-            
             let label = UILabel()
             label.frame = CGRect.init(x: 16, y: -20, width: headerView.frame.width, height: headerView.frame.height)
             label.text = "Product ID"
-            label.font = .systemFont(ofSize: 16)
+//            label.font = .systemFont(ofSize: 16)
+            label.adjustsFontSizeToFitWidth = true
             headerView.addSubview(label)
             return headerView
         }
     /*Function that gets called everytime the user changes the text value to search for the product id.
      This function first makes a query to the database, and then changes the products array displayed
-     that is then displayed by the tableview. */
+     that is then displayed by the tableview. For efficiency I don't actually query database here,
+     more details are in design document.*/
     func query(){
-        //products.removeAll()
         if searchedVal.contains(","){
             productsForTable.removeAll()
-            //tableView.reloadData()
         } else{
             let queryPattern = Expression<String>(searchedVal + "%")
             let query = productsTab.filter(productID.like(queryPattern))
@@ -243,12 +300,13 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
 }
 
 extension ViewController: UISearchBarDelegate {
+    /*Called when user edits SearchBar*/
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         searchedVal = searchText
         query()
         tableView.reloadData()
     }
-    
+    /*Called when user clicks cancel button*/
     func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
         searchBar.text = ""
         searchedVal = ""
