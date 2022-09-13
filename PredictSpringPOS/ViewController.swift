@@ -71,26 +71,31 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         /*Spec says app takes file name as input, but does not specify whether that is user input.
          After making beta version I would clarify this, and adjust functionality accordingly. 
          */
+        
+        /*This command lets us use the background thread to load data. Furthermore, there are
+         two seperate functions, one that loads the data for the UI and the other that loads it
+         into the SQL database. These two functions are split up because loading data in the database
+         takes more time and the User Interface does not depend on it, so it can be done in background
+         once UI of app is loaded
+         */
         DispatchQueue.global(qos: .userInitiated).async {
-            self.retrieveFileFromUrl()
+            //self.retrieveFileFromUrl()
             let documentsUrl:URL =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             let destinationFileUrl = documentsUrl.appendingPathComponent("downloadedFile.csv")
-            let data = try? Data(contentsOf: destinationFileUrl, options: [.dataReadingMapped, .uncached])
-            if let data = self.readDataFromCSV(fileName: "downloadedFile", fileType: "csv") {
-                /*This command lets us use the background thread to load data. Furthermore, there are
-                 two seperate functions, one that loads the data for the UI and the other that loads it
-                 into the SQL database. These two functions are split up because loading data in the database
-                 takes more time and the User Interface does not depend on it, so it can be done in background
-                 once UI of app is loaded
-                 */
+            let savedData = try? Data(contentsOf: destinationFileUrl)
+            let savedString = String(data: savedData!, encoding: .utf8)
+            self.getDataForUI(data: savedString!)
+            self.csv(data: savedString!)
+            //let data = try? Data(contentsOf: destinationFileUrl, options: [.dataReadingMapped, .uncached])
+//            if let data = self.readDataFromCSV(fileName: "downloadedFile", fileType: "csv") {
+                
                 
                     
-                    self.getDataForUI(data: data)
-                    self.csv(data: data)
+
                 
-            } else{
-                print("Error loading File")
-            }
+//            } else{
+//                print("Error loading File")
+//            }
         }
         /*Timer that fires so that we can update the table view and loading bars.
          This is done because UIKit does not support multiple threads, so we have to
@@ -106,7 +111,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     func retrieveFileFromUrl(){
         // Create destination URL
         let documentsUrl:URL =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let destinationFileUrl = Bundle.main.bundleURL.appendingPathComponent("downloadedFile.csv")
+        let destinationFileUrl = documentsUrl.appendingPathComponent("downloadedFile.csv")
         
         do {
             try FileManager.default.removeItem(at: destinationFileUrl)
