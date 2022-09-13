@@ -36,6 +36,8 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     let productID = Expression<String>("productID")
     let values = Expression<String>("values")
     
+    var downloadTask = URLSessionDownloadTask()
+    
     //Database connection
     let DB = try? Connection()
     //Percentage of data that is uploaded
@@ -43,9 +45,9 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     //Timer to display values for upload percentage while data is being uploaded in background thread
     var timer = Timer()
     //Boolean variable to indicate whether front end or back end data is being loaded
-    var frontEndLoading = true
+    var partLoading = 0
     //String to be displayed in uploadLabel
-    var uploadLabelString = "Upload Percentage: "
+    var uploadLabelString = "Upload From Web Percent: "
     
     override func viewDidLoad() {
         //Loads the view
@@ -57,8 +59,9 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         self.tableView.delegate = self
         self.searchBar.delegate = self
         self.searchBar.showsCancelButton = true
-        uploadLabel.text = "Upload Percentage: 0"
-        progressBar.progress = 1.0
+        uploadLabel.adjustsFontSizeToFitWidth = true
+        uploadLabel.text = "Upload From Web Percent: 0"
+        progressBar.progress = 0.0
         progressBar.isHidden = false
         searchBar.isHidden = true
         //Configure the height of each cell, so that 10 cells are displayed at a time
@@ -79,13 +82,30 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
          once UI of app is loaded
          */
         DispatchQueue.global(qos: .userInitiated).async {
-            //self.retrieveFileFromUrl()
+            
+            
+
+            self.retrieveFileFromUrl()
+            
+            
+
+//            group.notify(queue: .main) {
+//                    // all data available, continue
+//            }
+            
+            
             let documentsUrl:URL =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             let destinationFileUrl = documentsUrl.appendingPathComponent("downloadedFile.csv")
-            let savedData = try? Data(contentsOf: destinationFileUrl)
-            let savedString = String(data: savedData!, encoding: .utf8)
+            let savedString = try? String(contentsOf: URL(string: "https://drive.google.com/u/1/uc?id=16jxfVYEM04175AMneRlT0EKtaDhhdrrv&export=download")!)
+            
+            //let savedData = try? Data(contentsOf: destinationFileUrl)
+            //let savedString = String(data: savedData!, encoding: .utf8)
+            
             self.getDataForUI(data: savedString!)
             self.csv(data: savedString!)
+            
+            
+            
             //let data = try? Data(contentsOf: destinationFileUrl, options: [.dataReadingMapped, .uncached])
 //            if let data = self.readDataFromCSV(fileName: "downloadedFile", fileType: "csv") {
                 
@@ -108,7 +128,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
 
     }
     
-    func retrieveFileFromUrl(){
+    func retrieveFileFromUrl() {
         // Create destination URL
         let documentsUrl:URL =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let destinationFileUrl = documentsUrl.appendingPathComponent("downloadedFile.csv")
@@ -126,8 +146,9 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         let session = URLSession(configuration: sessionConfig)
 
         let request = URLRequest(url:fileURL!)
-
-        let task = session.downloadTask(with: request) { (tempLocalUrl, response, error) in
+        
+        
+        downloadTask = session.downloadTask(with: request) { (tempLocalUrl, response, error) in
             if let tempLocalUrl = tempLocalUrl, error == nil {
                 // Success
                 if let statusCode = (response as? HTTPURLResponse)?.statusCode {
@@ -144,7 +165,10 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
                 print("Error took place while downloading a file. Error description: %@", error?.localizedDescription);
             }
         }
-        task.resume()
+        
+        downloadTask.resume()
+        
+        
     }
     
     func getCSVData() -> Array<String> {
@@ -197,6 +221,9 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     /*called every time interval(.5 seconds) from the timer. This operates in the main thread
      and interacts with the UIKit since work inte hbackground thread cannot do this.*/
     @objc func timerAction() {
+        if partLoading == 0{
+            uploadPercentage = Int(downloadTask.progress.fractionCompleted * 100)
+        }
         uploadLabel.text = uploadLabelString + String(uploadPercentage)
         let decimal = Float(uploadPercentage)/100.0
         progressBar.progress = decimal
@@ -204,9 +231,13 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             self.tableView.reloadData()
         }
         if uploadPercentage == 100{
-            if frontEndLoading{
+            if partLoading == 0{
+                uploadLabelString = "FrontEnd Loading: "
+                partLoading = 1
+                uploadPercentage = 0
+            } else if partLoading == 1{
                 uploadLabelString = "DataBase Loading: "
-                frontEndLoading = false
+                partLoading = 2
                 uploadPercentage = 0
                 searchBar.isHidden = false
             } else{
